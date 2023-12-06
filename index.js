@@ -5,6 +5,9 @@ const app = express();
 app.use(express.json());
 const LOCKER_STUDIO_API_KEY = '0b48aff1935bf41a7ef5ac51c12d8026aafdf8d5';
 const FB_ACCESS_TOKEN = 'eb0aa5f9f68fd96a739557a64b3b8945';
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
 // Function to post to Facebook
 const postToFacebook = async (message) => {
   try {
