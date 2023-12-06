@@ -1,62 +1,66 @@
-require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 
 const app = express();
 app.use(express.json());
+const LOCKER_STUDIO_API_KEY = '0b48aff1935bf41a7ef5ac51c12d8026aafdf8d5';
+const FB_ACCESS_TOKEN = 'eb0aa5f9f68fd96a739557a64b3b8945';
+// Function to post to Facebook
+const postToFacebook = async (message) => {
+  try {
+    const response = await axios.post(
+      `https://graph.facebook.com/v10.0/me/feed`,
+      {
+        message: message,
+      },
+      {
+        params: {
+          access_token: FB_ACCESS_TOKEN,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
 
-app.post('/postToFacebook', async (req, res) => {
-  const facebookAccessToken = 'eb0aa5f9f68fd96a739557a64b3b8945';
-  const lockerStudioApiKey = '0b48aff1935bf41a7ef5ac51c12d8026aafdf8d5';
+// Function to save post details to Locker Studio
+const saveToLockerStudio = async (postDetails) => {
+  try {
+    const response = await axios.post(
+      'https://lookerstudio.google.com/u/0/navigation/reporting', // Replace with actual API
+      postDetails,
+      {
+        headers: {
+          Authorization: `Bearer ${LOCKER_STUDIO_API_KEY}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
 
-  const postContent = {
-    message: 'Your message here',
-    // Add other post parameters as needed
-  };
-
+app.post('/post-and-save', async (req, res) => {
   try {
     // Post to Facebook
-    const fbResponse = await axios.post(
-      `https://graph.facebook.com/v13.0/me/feed?access_token=${facebookAccessToken}`,
-      postContent
-    );
+    const fbPost = await postToFacebook(req.body.message);
 
-    // Check if the post was successful
-    if (fbResponse.data && fbResponse.data.id) {
-      const facebookPostId = fbResponse.data.id;
+    // Save post details to Locker Studio
+    const savedPost = await saveToLockerStudio({
+      postId: fbPost.id,
+      message: req.body.message,
+    });
 
-      // Prepare data for Locker Studio
-      const lockerStudioData = {
-        facebookPostId: facebookPostId,
-        content: postContent.message,
-        // Add other relevant data
-      };
-
-      // Send data to Locker Studio
-      const lockerStudioResponse = await axios.post(
-        'https://lookerstudio.google.com/u/0/navigation/reporting',
-        lockerStudioData,
-        {
-          headers: {
-            Authorization: `Bearer ${lockerStudioApiKey}`,
-            // Add other necessary headers
-          },
-        }
-      );
-
-      // Success response
-      res.json({
-        message: 'Post created and sent to Locker Studio',
-        lockerStudioResponse: lockerStudioResponse.data,
-      });
-    } else {
-      throw new Error('Failed to post to Facebook');
-    }
+    res.json({ facebook: fbPost, lockerStudio: savedPost });
   } catch (error) {
-    console.error('Error:', error.message);
-    res.status(500).send('An error occurred');
+    res.status(500).json({ error: error.message });
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
